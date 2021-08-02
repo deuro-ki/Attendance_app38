@@ -1,13 +1,17 @@
 class UsersController < ApplicationController
   before_action :set_user, only: [:show, :edit, :update, :destroy, :edit_basic_info, :update_basic_info]
-  before_action :logged_in_user, only: [:show, :edit, :update, :destroy, :edit_basic_info, :update_basic_info]
+  before_action :logged_in_user, only: [:index, :show, :edit, :update, :destroy, :edit_basic_info, :update_basic_info]
   before_action :correct_user, only: [:edit, :update]
   before_action :admin_user, only: [:destroy, :edit_basic_info, :update_basic_info]
   before_action :set_one_month, only: :show
   
   
   def index
-    @users = User.paginate(page: params[:page])
+    @users = if params[:search]
+    User.paginate(page: params[:page]).where('name LIKE?', "%#{params[:search]}%")
+   else
+    User.paginate(page: params[:page])
+   end
   end
   
   def show
@@ -15,7 +19,11 @@ class UsersController < ApplicationController
   end
   
   def new
-    @user = User.new
+    if logged_in? && !current_user.admin?
+      flash[:warning] = "すでにログインしています。"
+      redirect_to current_user
+    end
+     @user = User.new
   end
   
   def create
@@ -30,10 +38,12 @@ class UsersController < ApplicationController
   end
   
   def edit
+    @user = User.find(params[:id])
   end
   
   
   def update
+    @user = User.find(params[:id])
     if @user.update_attributes(user_params)
       flash[:success] = "ユーザー情報を更新しました。"
       redirect_to @user
@@ -42,6 +52,7 @@ class UsersController < ApplicationController
     end
   end
   
+  
   def destroy
     @user.destroy
     flash[:success] = "#{@user.name}のデータを削除しました。"
@@ -49,7 +60,9 @@ class UsersController < ApplicationController
   end
   
   def edit_basic_info
+    @user = User.find_by(id: params[:id])
   end
+  
   
   def update_basic_info
    if @user.update_attributes(basic_info_params)
@@ -71,4 +84,7 @@ class UsersController < ApplicationController
      params.require(:user).permit(:department, :basic_time, :work_time)
    end
    
+   def search
+     @users = User.search(params[:search])
+   end
 end
